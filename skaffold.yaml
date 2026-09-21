@@ -17,10 +17,6 @@ kind: Config
 metadata:
   name: app
 build:
-  # Build natively on Apple Silicon for local development. Multi-platform
-  # builds require pushing manifests to a registry and can remain stuck at
-  # "Waiting" when using `skaffold dev` with Docker Desktop.
-  platforms: ["linux/arm64"]
   artifacts:
   # image tags are relative; to specify an image repo (e.g. GCR), you
   # must provide a "default repo" using one of the methods described
@@ -104,7 +100,6 @@ requires:
 - configs:
   - app
 build:
-  platforms: ["linux/arm64"]
   artifacts:
   - image: loadgenerator
     context: src/loadgenerator
