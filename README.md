@@ -168,3 +168,67 @@ Find **Protocol Buffers Descriptions** at the [`./protos` directory](/protos).
 - [Google Cloud Next'18 London – Keynote](https://youtu.be/nIq2pkNcfEI?t=3071)
   showing Stackdriver Incident Response Management
 - [Microservices demo showcasing Go Micro](https://github.com/go-micro/demo)
+
+## Local gRPC test workflow
+
+### Fresh-machine prerequisites
+
+Install Docker Desktop, enable its built-in Kubernetes cluster, and install
+the command-line tools:
+
+```sh
+brew install kubectl skaffold grpcurl ghz
+```
+
+Create the local Python environment:
+
+```sh
+python3 -m venv venv
+source venv/bin/activate
+pip install grpcio grpcio-tools pytest
+```
+
+On Apple Silicon, enable Kubernetes in Docker Desktop and start the stack:
+
+```sh
+skaffold dev --platform linux/arm64
+```
+
+In separate terminals, forward the internal services used by the Python tests:
+
+```sh
+kubectl port-forward svc/checkoutservice 5050:5050
+kubectl port-forward svc/paymentservice 50051:50051
+kubectl port-forward svc/cartservice 7070:7070
+```
+
+From the repository root, prepare and run the tests:
+
+```sh
+source venv/bin/activate
+mkdir -p tests/generated
+python -m grpc_tools.protoc -I protos \
+  --python_out=tests/generated \
+  --grpc_python_out=tests/generated protos/demo.proto
+pytest tests/ -v
+```
+
+The generated Python stubs under `tests/generated/` are local artifacts and
+are intentionally ignored by Git.
+
+## Performance testing
+
+The performance script uses `ghz` for gRPC load testing and `grpcurl` to seed
+the cart before checkout runs:
+
+```sh
+brew install ghz grpcurl
+chmod +x perf/checkout_load_test.sh
+./perf/checkout_load_test.sh
+```
+
+It covers valid and invalid payment requests, valid checkout requests, and
+short-deadline checkout requests at concurrency levels 10, 25, 50, and 100.
+Each run creates HTML reports in `perf/reports/`. Those generated reports are
+local artifacts and are intentionally ignored by Git; the versioned test
+logic is `perf/checkout_load_test.sh`.

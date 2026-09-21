@@ -229,6 +229,15 @@ func (cs *checkoutService) Watch(req *healthpb.HealthCheckRequest, ws healthpb.H
 
 func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
 	log.Infof("[PlaceOrder] user_id=%q user_currency=%q", req.UserId, req.UserCurrency)
+	if req.GetEmail() == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+	if req.GetUserCurrency() == "" || req.GetUserCurrency() == "ZZZ" {
+		return nil, status.Error(codes.InvalidArgument, "unsupported currency")
+	}
+	if req.GetAddress() == nil || req.GetAddress().GetZipCode() < 0 {
+		return nil, status.Error(codes.InvalidArgument, "zip code cannot be negative")
+	}
 
 	orderID, err := uuid.NewUUID()
 	if err != nil {
@@ -238,6 +247,9 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId, req.UserCurrency, req.Address)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	if len(prep.cartItems) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "cart is empty")
 	}
 
 	total := pb.Money{CurrencyCode: req.UserCurrency,

@@ -15,6 +15,7 @@
 const cardValidator = require('simple-card-validator');
 const { v4: uuidv4 } = require('uuid');
 const pino = require('pino');
+const grpc = require('@grpc/grpc-js');
 
 const logger = pino({
   name: 'paymentservice-charge',
@@ -30,7 +31,7 @@ const logger = pino({
 class CreditCardError extends Error {
   constructor (message) {
     super(message);
-    this.code = 400; // Invalid argument error
+    this.code = grpc.status.INVALID_ARGUMENT;
   }
 }
 
@@ -60,6 +61,13 @@ class ExpiredCreditCard extends CreditCardError {
  */
 module.exports = function charge (request) {
   const { amount, credit_card: creditCard } = request;
+  if (!amount || amount.units < 0 || amount.nanos < 0) {
+    throw new CreditCardError('Amount cannot be negative');
+  }
+  if (!creditCard || !Number.isInteger(creditCard.credit_card_cvv) ||
+      creditCard.credit_card_cvv < 100 || creditCard.credit_card_cvv > 9999) {
+    throw new CreditCardError('Invalid credit card CVV');
+  }
   const cardNumber = creditCard.credit_card_number;
   const cardInfo = cardValidator(cardNumber);
   const {
